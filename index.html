@@ -12,6 +12,7 @@
       flex-direction: column;
       align-items: center;
       margin-top: 20px;
+      touch-action: none;
     }
     .grid {
       display: grid;
@@ -40,6 +41,7 @@
     const gridWidth = 5;
     const gridHeight = 7;
     const grid = document.getElementById('grid');
+    let dragData = null;
 
     function nextValue(val) {
       if (!isNaN(val)) {
@@ -86,6 +88,8 @@
         for (let x = 0; x < gridWidth; x++) {
           const value = data ? data[i++] : (Math.random() < 0.2 ? '1' : '');
           const cell = createCell(x, y, value);
+
+          // Mouse drag
           cell.addEventListener('dragstart', e => {
             e.dataTransfer.setData('text/plain', JSON.stringify({ x, y, value: cell.textContent }));
           });
@@ -104,20 +108,54 @@
             cell.classList.remove('drag-over');
             const data = JSON.parse(e.dataTransfer.getData('text/plain'));
             const from = document.querySelector(`.cell[data-x="${data.x}"][data-y="${data.y}"]`);
+            handleMerge(from, cell, data.value);
+          });
 
-            if (cell !== from && cell.textContent === data.value) {
-              const newValue = nextValue(data.value);
-              setCellValue(cell, newValue);
-              setCellValue(from, '');
-              const empty = getEmptyCells().length;
-              const spawnCount = empty === 1 ? 1 : 2;
-              const spawnValue = newValue >= 'a' ? 'a' : '1';
-              spawnNew(spawnValue, spawnCount);
+          // Touch drag
+          cell.addEventListener('touchstart', e => {
+            if (!cell.textContent) return;
+            dragData = { x, y, value: cell.textContent, cell };
+            cell.style.opacity = '0.5';
+            e.preventDefault();
+          });
+
+          cell.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            document.querySelectorAll('.cell.drag-over').forEach(c => c.classList.remove('drag-over'));
+            if (target && target.classList.contains('cell')) {
+              target.classList.add('drag-over');
             }
+          });
+
+          cell.addEventListener('touchend', e => {
+            e.preventDefault();
+            if (!dragData) return;
+            const touch = e.changedTouches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.classList.contains('cell') && target !== dragData.cell) {
+              handleMerge(dragData.cell, target, dragData.value);
+            }
+            dragData.cell.style.opacity = '';
+            document.querySelectorAll('.cell.drag-over').forEach(c => c.classList.remove('drag-over'));
+            dragData = null;
           });
 
           grid.appendChild(cell);
         }
+      }
+    }
+
+    function handleMerge(from, to, value) {
+      if (to.textContent === value) {
+        const newValue = nextValue(value);
+        setCellValue(to, newValue);
+        setCellValue(from, '');
+        const empty = getEmptyCells().length;
+        const spawnCount = empty === 1 ? 1 : 2;
+        const spawnValue = newValue >= 'a' ? 'a' : '1';
+        spawnNew(spawnValue, spawnCount);
       }
     }
 
