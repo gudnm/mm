@@ -2,52 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Merge Game Prototype</title>
   <style>
     body {
       font-family: sans-serif;
+      background: black;
+      color: white;
       display: flex;
-      justify-content: center;
-      margin-top: 30px;
-      padding: 10px;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 40px);
       grid-gap: 5px;
-      width: 100%;
-      max-width: 320px;
+      margin-bottom: 10px;
     }
     .cell {
-      aspect-ratio: 1 / 1;
-      background: #eee;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 5vw;
-      max-font-size: 24px;
-      border: 1px solid #ccc;
+      font-size: 20px;
       user-select: none;
-      touch-action: none; /* prevent scrolling while dragging */
     }
     .cell.drag-over {
-      background: #cfc;
+      background: #444;
     }
-    @media (min-width: 400px) {
-      .cell {
-        font-size: 24px;
-      }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
+  <div class="controls">
+    <button id="exportBtn">Export</button>
+    <button id="importBtn">Import</button>
+  </div>
   <div class="grid" id="grid"></div>
 
   <script>
-    const gridSize = 4;
+    const gridWidth = 5;
+    const gridHeight = 7;
     const grid = document.getElementById('grid');
-    let dragData = null;
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
 
     function nextValue(val) {
       if (!isNaN(val)) {
@@ -87,13 +90,13 @@
       }
     }
 
-    function initGrid() {
-      for (let y = 0; y < gridSize; y++) {
-        for (let x = 0; x < gridSize; x++) {
-          const value = Math.random() < 0.2 ? '1' : '';
+    function initGrid(data = null) {
+      grid.innerHTML = '';
+      let i = 0;
+      for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+          const value = data ? data[i++] : (Math.random() < 0.2 ? '1' : '');
           const cell = createCell(x, y, value);
-
-          // Mouse drag events
           cell.addEventListener('dragstart', e => {
             e.dataTransfer.setData('text/plain', JSON.stringify({ x, y, value: cell.textContent }));
           });
@@ -112,38 +115,16 @@
             cell.classList.remove('drag-over');
             const data = JSON.parse(e.dataTransfer.getData('text/plain'));
             const from = document.querySelector(`.cell[data-x="${data.x}"][data-y="${data.y}"]`);
-            handleMerge(from, cell, data.value);
-          });
 
-          // Touch events for mobile drag
-          cell.addEventListener('touchstart', e => {
-            if (!cell.textContent) return;
-            dragData = { x, y, value: cell.textContent, cell };
-            cell.style.opacity = '0.5';
-            e.preventDefault();
-          });
-
-          cell.addEventListener('touchmove', e => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            document.querySelectorAll('.cell.drag-over').forEach(c => c.classList.remove('drag-over'));
-            if (target && target.classList.contains('cell')) {
-              target.classList.add('drag-over');
+            if (cell !== from && cell.textContent === data.value) {
+              const newValue = nextValue(data.value);
+              setCellValue(cell, newValue);
+              setCellValue(from, '');
+              const empty = getEmptyCells().length;
+              const spawnCount = empty === 1 ? 1 : 2;
+              const spawnValue = newValue >= 'a' ? 'a' : '1';
+              spawnNew(spawnValue, spawnCount);
             }
-          });
-
-          cell.addEventListener('touchend', e => {
-            e.preventDefault();
-            if (!dragData) return;
-            const touch = e.changedTouches[0];
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (target && target.classList.contains('cell') && target !== dragData.cell) {
-              handleMerge(dragData.cell, target, dragData.value);
-            }
-            dragData.cell.style.opacity = '';
-            document.querySelectorAll('.cell.drag-over').forEach(c => c.classList.remove('drag-over'));
-            dragData = null;
           });
 
           grid.appendChild(cell);
@@ -151,17 +132,25 @@
       }
     }
 
-    function handleMerge(from, to, value) {
-      if (to.textContent === value) {
-        const newValue = nextValue(value);
-        setCellValue(to, newValue);
-        setCellValue(from, '');
-        const empty = getEmptyCells().length;
-        const spawnCount = empty === 1 ? 1 : 2;
-        const spawnValue = newValue >= 'a' ? 'a' : '1';
-        spawnNew(spawnValue, spawnCount);
-      }
+    function getGridState() {
+      return Array.from(document.querySelectorAll('.cell')).map(c => c.textContent || '.').join('');
     }
+
+    function setGridState(stateString) {
+      if (stateString.length !== gridWidth * gridHeight) return;
+      const data = stateString.split('').map(c => c === '.' ? '' : c);
+      initGrid(data);
+    }
+
+    exportBtn.addEventListener('click', () => {
+      const state = getGridState();
+      navigator.clipboard.writeText(state).then(() => alert('Game state copied to clipboard:\n' + state));
+    });
+
+    importBtn.addEventListener('click', () => {
+      const userState = prompt('Paste your saved game state:');
+      if (userState) setGridState(userState);
+    });
 
     initGrid();
   </script>
