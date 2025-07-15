@@ -31,26 +31,15 @@
     .cell.drag-over {
       background: #444;
     }
-    .controls {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
   </style>
 </head>
 <body>
-  <div class="controls">
-    <button id="exportBtn">Export</button>
-    <button id="importBtn">Import</button>
-  </div>
   <div class="grid" id="grid"></div>
 
   <script>
     const gridWidth = 5;
     const gridHeight = 7;
     const grid = document.getElementById('grid');
-    const exportBtn = document.getElementById('exportBtn');
-    const importBtn = document.getElementById('importBtn');
 
     function nextValue(val) {
       if (!isNaN(val)) {
@@ -141,16 +130,6 @@
       const data = stateString.split('').map(c => c === '.' ? '' : c);
       initGrid(data);
     }
-
-    exportBtn.addEventListener('click', () => {
-      const state = getGridState();
-      navigator.clipboard.writeText(state).then(() => alert('Game state copied to clipboard:\n' + state));
-    });
-
-    importBtn.addEventListener('click', () => {
-      const userState = prompt('Paste your saved game state:');
-      if (userState) setGridState(userState);
-    });
 
     initGrid();
   </script>
